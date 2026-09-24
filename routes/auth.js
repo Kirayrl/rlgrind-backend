@@ -30,7 +30,8 @@ router.post('/register', async (req, res) => {
         id:       user._id,
         username: user.username,
         elo:      user.elo,
-        rank:     user.getRank()
+        rank:     user.getRank(),
+        role:     user.role // <-- Ajouté ici
       }
     });
   } catch (err) {
@@ -61,7 +62,8 @@ router.post('/login', async (req, res) => {
         elo:      user.elo,
         rank:     user.getRank(),
         stats:    user.stats,
-        winrate:  user.getWinrate()
+        winrate:  user.getWinrate(),
+        role:     user.role // <-- Ajouté ici
       }
     });
   } catch (err) {
@@ -80,7 +82,8 @@ router.get('/me', require('../middleware/auth'), async (req, res) => {
     stats:       user.stats,
     winrate:     user.getWinrate(),
     inQueue:     user.inQueue,
-    inMatch:     user.inMatch
+    inMatch:     user.inMatch,
+    role:        user.role // <-- Ajouté ici aussi
   });
 });
 

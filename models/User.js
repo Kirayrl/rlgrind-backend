@@ -25,10 +25,16 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'  // Par défaut, tout nouveau compte est un utilisateur classique
+  },
   elo: {
     type: Number,
     default: 400  // Tout le monde start Gold
   },
+  
   stats: {
     wins:   { type: Number, default: 0 },
     losses: { type: Number, default: 0 },
