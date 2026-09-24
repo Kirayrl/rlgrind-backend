@@ -27,16 +27,49 @@ router.post('/disputes/:matchId/resolve', auth, admin, async (req, res) => {
       return res.status(404).json({ error: 'Match en litige introuvable.' });
     }
 
-    const loserId = match.player1.toString() === winnerId ? match.player2 : match.player1;
+    const p1Id = match.player1.toString();
+    const p2Id = match.player2.toString();
+    const isP1Winner = winnerId.toString() === p1Id;
+
+    const loserId = isP1Winner ? p2Id : p1Id;
+
+    // Récupérer les utilisateurs
+    const winnerUser = await User.findById(winnerId);
+    const loserUser = await User.findById(loserId);
+
+    if (!winnerUser || !loserUser) {
+      return res.status(404).json({ error: 'Joueur(s) introuvable(s).' });
+    }
+
+    // Calcul de l'ELO (fixe ou basé sur ton système habituel, ici ex: 25 points)
+    const eloChange = 25;
+
+    // Mise à jour des stats du gagnant
+    winnerUser.elo += eloChange;
+    winnerUser.stats.wins = (winnerUser.stats.wins || 0) + 1;
+    winnerUser.inMatch = false;
+    await winnerUser.save();
+
+    // Mise à jour des stats du perdant
+    loserUser.elo = Math.max(0, loserUser.elo - eloChange);
+    loserUser.stats.losses = (loserUser.stats.losses || 0) + 1;
+    loserUser.inMatch = false;
+    await loserUser.save();
 
     // Mettre à jour le match
     match.status = 'completed';
     match.winner = winnerId;
     match.completedAt = Date.now();
     match.disputed = false;
+    
+    // Sauvegarde des changements d'Elo dans le match
+    match.eloChanges = {
+      player1: isP1Winner ? eloChange : -eloChange,
+      player2: isP1Winner ? -eloChange : eloChange
+    };
 
-    // Définir le score final selon le choix de l'admin (ou par défaut basé sur les soumissions)
-    if (winnerId === match.player1.toString()) {
+    // Définir le score final selon le choix de l'admin
+    if (isP1Winner) {
       match.finalScore = { player1Goals: 1, player2Goals: 0 };
     } else {
       match.finalScore = { player1Goals: 0, player2Goals: 1 };
@@ -44,10 +77,9 @@ router.post('/disputes/:matchId/resolve', auth, admin, async (req, res) => {
 
     await match.save();
 
-    // Optionnel : Mettre à jour les stats et ELO des joueurs ici si tu le souhaites
-
-    res.json({ message: 'Litige résolu avec succès par l\'administrateur.', match });
+    res.json({ message: 'Litige résolu avec succès par l\'administrateur et ELO mis à jour.', match });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Erreur lors de la résolution du litige.' });
   }
 });
