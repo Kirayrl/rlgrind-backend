@@ -106,16 +106,13 @@ io.on('connection', async (socket) => {
           lobbyPassword: match.lobbyPassword,
         };
 
+        // Notification Joueur 1
         io.to(`user:${p1.userId}`).emit('match:found', {
           ...matchData,
           opponent: { username: p2.username, elo: p2.elo }
         });
-        io.to(`user:${p2.username}` /* Attention ici, utilise bien p2.userId */).emit('match:found', {
-          ...matchData,
-          opponent: { username: p1.username, elo: p1.elo }
-        });
-        
-        // Correction de la ligne d'émission pour p2 :
+
+        // Notification Joueur 2 (propre, via l'ID)
         io.to(`user:${p2.userId}`).emit('match:found', {
           ...matchData,
           opponent: { username: p1.username, elo: p1.elo }
