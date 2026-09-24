@@ -51,10 +51,8 @@ io.use(async (socket, next) => {
 io.on('connection', async (socket) => {
   const user = socket.user;
   
-  // ── SÉCURITÉ PROpre : On nettoie uniquement le flag match fantôme au démarrage ──
-  // On ne touche PAS à inQueue ici pour ne pas casser la recherche en cours
+  // SÉCURITÉ : Nettoyage uniquement du flag match fantôme au démarrage
   await User.findByIdAndUpdate(user._id, { inMatch: false });
-  // -----------------------------------------------------------------------------
 
   console.log(`[+] ${user.username} connecté (ELO 1v1: ${user.elo} | ELO 2v2: ${user.elo2v2})`);
   socket.join(`user:${user._id}`);
@@ -100,11 +98,11 @@ io.on('connection', async (socket) => {
         );
 
         const matchData = {
-         matchId: match._id,
-         player1Id: match.player1, // <--- Important pour identifier l'hôte
-         lobbyName: match.lobbyName,
-         lobbyPassword: match.lobbyPassword,
-       };
+          matchId: match._id,
+          player1Id: p1.userId, // Transmet l'ID du Joueur 1 (l'hôte)
+          lobbyName: match.lobbyName,
+          lobbyPassword: match.lobbyPassword,
+        };
 
         io.to(`user:${p1.userId}`).emit('match:found', {
           ...matchData,
@@ -122,72 +120,7 @@ io.on('connection', async (socket) => {
     }
   });
 
-  // ── QUEUE 2v2 ──────────────────────────────────────────────────────────────
-  socket.on('queue2v2:join', async () => {
-    if (user.inMatch) {
-      return socket.emit('queue:error', { message: 'Tu es déjà dans un match' });
-    }
-    if (queue1v1.has(user._id.toString()) || queue2v2.has(user._id.toString())) {
-      return socket.emit('queue:error', { message: 'Déjà dans une queue' });
-    }
-
-    queue2v2.set(user._id.toString(), {
-      socketId: socket.id,
-      elo2v2:   user.elo2v2,
-      username: user.username,
-      userId:   user._id
-    });
-
-    await User.findByIdAndUpdate(user._id, { inQueue: true });
-    socket.emit('queue:joined', { mode: '2v2', position: queue2v2.size });
-    console.log(`[QUEUE 2v2] ${user.username} rejoint la queue (${queue2v2.size}/4)`);
-
-    // Dès qu'on a 4 joueurs en 2v2 -> on forme 2 équipes de 2
-    if (queue2v2.size >= 4) {
-      const entries = [...queue2v2.entries()];
-      const [id1, p1] = entries[0];
-      const [id2, p2] = entries[1];
-      const [id3, p3] = entries[2];
-      const [id4, p4] = entries[3];
-
-      queue2v2.delete(id1);
-      queue2v2.delete(id2);
-      queue2v2.delete(id3);
-      queue2v2.delete(id4);
-
-      try {
-        const match = await Match.create({
-          player1: p1.userId,
-          player2: p3.userId,
-          status:  'ongoing'
-        });
-
-        const allPlayers = [p1.userId, p2.userId, p3.userId, p4.userId];
-        await User.updateMany(
-          { _id: { $in: allPlayers } },
-          { inQueue: false, inMatch: true }
-        );
-
-        const matchData = {
-          matchId:       match._id,
-          lobbyName:     match.lobbyName,
-          lobbyPassword: match.lobbyPassword
-        };
-
-        // Notifier les 4 joueurs
-        io.to(`user:${p1.userId}`).emit('match:found', { ...matchData, team: [p1, p2], opponents: [p3, p4] });
-        io.to(`user:${p2.userId}`).emit('match:found', { ...matchData, team: [p2, p1], opponents: [p3, p4] });
-        io.to(`user:${p3.userId}`).emit('match:found', { ...matchData, team: [p3, p4], opponents: [p1, p2] });
-        io.to(`user:${p4.userId}`).emit('match:found', { ...matchData, team: [p4, p3], opponents: [p1, p2] });
-
-        console.log(`[MATCH 2v2] (${p1.username}, ${p2.username}) vs (${p3.username}, ${p4.username})`);
-      } catch (err) {
-        console.error('[MATCH ERROR 2v2]', err);
-      }
-    }
-  });
-
-  // ── LEAVE QUEUE (1v1 ou 2v2) ───────────────────────────────────────────────
+  // ── LEAVE QUEUE ────────────────────────────────────────────────────────────
   socket.on('queue:leave', async () => {
     queue1v1.delete(user._id.toString());
     queue2v2.delete(user._id.toString());
@@ -196,7 +129,6 @@ io.on('connection', async (socket) => {
     console.log(`[QUEUE] ${user.username} a quitté la file d'attente`);
   });
 
-  // ── SCORE SUBMITTED ────────────────────────────────────────────────────────
   socket.on('match:score_submitted', ({ matchId, opponentId }) => {
     io.to(`user:${opponentId}`).emit('match:opponent_submitted', { matchId });
   });
@@ -209,7 +141,6 @@ io.on('connection', async (socket) => {
   });
 });
 
-// ─── MONGO + START ─────────────────────────────────────────────────────────
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('[DB] MongoDB connecté');
