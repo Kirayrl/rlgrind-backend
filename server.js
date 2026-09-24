@@ -25,7 +25,7 @@ app.use(express.static(path.join(__dirname, '../frontend'), {
 
 // Routes
 app.use('/api/auth',        require('./routes/auth'));
-app.use('/api/match',       require('./routes/match'));
+app.use('/api/match',       require('./routes/Match'));
 app.use('/api/leaderboard', require('./routes/leaderboard'));
 
 // ─── MATCHMAKING QUEUE ────────────────────────────────────────────────────────
