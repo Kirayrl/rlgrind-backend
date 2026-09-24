@@ -7,7 +7,7 @@ const cors       = require('cors');
 const jwt        = require('jsonwebtoken');
 
 const User  = require('./models/User');
-const Match = require('./models/Match');
+const Match = require('./models/MatchModel'); // <-- On pointe vers le nouveau nom
 
 const app    = express();
 const server = http.createServer(app);
