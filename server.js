@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express    = require('express');
-const http       = http = require('http'); // ou require('http');
+const http       = require('http');
 const { Server } = require('socket.io');
 const mongoose   = require('mongoose');
 const cors       = require('cors');
@@ -152,11 +152,9 @@ io.on('connection', (socket) => {
       queue2v2.delete(id4);
 
       try {
-        // Équipe 1 : p1 & p2 | Équipe 2 : p3 & p4
-        // Pour l'instant on gère le match model en 1v1, on pourra l'adapter ou stocker l'array des joueurs
         const match = await Match.create({
           player1: p1.userId,
-          player2: p3.userId, // Représentant principal de l'équipe adverse par défaut
+          player2: p3.userId,
           status:  'ongoing'
         });
 
@@ -211,8 +209,8 @@ io.on('connection', (socket) => {
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('[DB] MongoDB connecté');
-    server.listen(process.env.PORT, () => {
-      console.log(`[SERVER] http://localhost:${process.env.PORT}`);
+    server.listen(process.env.PORT || 3000, () => {
+      console.log(`[SERVER] Port ${process.env.PORT || 3000}`);
     });
   })
   .catch(err => {
