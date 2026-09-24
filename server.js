@@ -99,11 +99,11 @@ io.on('connection', async (socket) => {
         );
 
         const matchData = {
-          matchId:       match._id,
-          lobbyName:     match.lobbyName,
-          lobbyPassword: match.lobbyPassword,
-          opponent:      null
-        };
+         matchId: match._id,
+         player1Id: match.player1, // <--- Important pour identifier l'hôte
+         lobbyName: match.lobbyName,
+         lobbyPassword: match.lobbyPassword,
+       };
 
         io.to(`user:${p1.userId}`).emit('match:found', {
           ...matchData,
