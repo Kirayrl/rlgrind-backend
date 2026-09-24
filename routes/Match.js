@@ -1,3 +1,10 @@
+const express = require('express');
+const router = express.Router();
+const Match = require('../models/Match');
+const User = require('../models/User');
+const auth = require('../middleware/auth');
+
+// ── 1. Soumettre le score d'un match ────────────────────────────────────────
 router.post('/:id/submit', auth, async (req, res) => {
   try {
     const { myScore, theirScore } = req.body;
@@ -15,23 +22,19 @@ router.post('/:id/submit', auth, async (req, res) => {
       return res.status(403).json({ error: 'Tu ne fais pas partie de ce match.' });
     }
 
-    // Initialiser scoreSubmissions si absent
     if (!match.scoreSubmissions) {
       match.scoreSubmissions = {};
     }
 
-    // Enregistre la soumission du joueur concerné
     if (isPlayer1) {
       match.scoreSubmissions.player1 = { myScore, theirScore };
     } else {
       match.scoreSubmissions.player2 = { myScore, theirScore };
     }
 
-    // Marquer que ce joueur a soumis (optionnel selon ton schéma, mais pratique)
     const sub1 = match.scoreSubmissions.player1;
     const sub2 = match.scoreSubmissions.player2;
 
-    // ATTENTION : On ne compare QUE si les DEUX ont soumis !
     if (sub1 && sub2) {
       const p1GoalsClaimedByP1 = sub1.myScore;
       const p2GoalsClaimedByP1 = sub1.theirScore;
@@ -39,9 +42,7 @@ router.post('/:id/submit', auth, async (req, res) => {
       const p2GoalsClaimedByP2 = sub2.myScore;
       const p1GoalsClaimedByP2 = sub2.theirScore;
 
-      // Comparaison croisée : Est-ce que P1 et P2 sont d'accord sur les deux scores ?
       if (p1GoalsClaimedByP1 === p1GoalsClaimedByP2 && p2GoalsClaimedByP1 === p2GoalsClaimedByP2) {
-        // MATCH VALIDÉ !
         match.status = 'completed';
         match.completedAt = Date.now();
         match.finalScore = { player1Goals: p1GoalsClaimedByP1, player2Goals: p2GoalsClaimedByP2 };
@@ -76,19 +77,48 @@ router.post('/:id/submit', auth, async (req, res) => {
         await p2User.save();
 
       } else {
-        // VRAI LITIGE : Les deux ont soumis, mais les scores ne correspondent pas du tout
         match.status = 'disputed';
         match.disputeReason = 'Les scores soumis par les deux joueurs diffèrent.';
       }
-    } else {
-      // Un seul joueur a soumis pour l'instant, on laisse le match en 'ongoing'
-      // Tu peux éventuellement émettre un évènement Socket.io ici pour prévenir l'autre joueur
     }
 
     await match.save();
-    res.json({ message: 'Score enregistré avec succès. En attente de l\'adversaire.', match });
+    res.json({ message: 'Score enregistré avec succès.', match });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Erreur lors de la soumission du score.' });
   }
 });
+
+// ── 2. Récupérer un match par son ID ───────────────────────────────────────
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const match = await Match.findById(req.params.id)
+      .populate('player1', 'username elo')
+      .populate('player2', 'username elo');
+    if (!match) return res.status(404).json({ error: 'Match introuvable.' });
+    res.json(match);
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// ── 3. Historique des matchs de l'utilisateur ──────────────────────────────
+router.get('/my-history', auth, async (req, res) => {
+  try {
+    const matches = await Match.find({
+      $or: [{ player1: req.user._id }, { player2: req.user._id }],
+      status: 'completed'
+    })
+      .populate('player1', 'username elo')
+      .populate('player2', 'username elo')
+      .sort({ completedAt: -1 })
+      .limit(10);
+
+    res.json(matches);
+  } catch (err) {
+    res.status(500).json({ error: 'Erreur lors de la récupération de l\'historique.' });
+  }
+});
+
+module.exports = router;
