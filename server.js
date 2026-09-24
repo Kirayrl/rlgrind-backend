@@ -88,11 +88,13 @@ io.on('connection', async (socket) => {
       console.log(`[MATCHMAKING] Match trouvé entre ${p1.username} et ${p2.username} ! Création en cours...`);
 
       try {
-        const match = await Match.create({
+        // Remplacement de Match.create par l'instanciation classique (plus robuste)
+        const match = new Match({
           player1: p1.userId,
           player2: p2.userId,
           status:  'ongoing'
         });
+        await match.save();
 
         await User.updateMany(
           { _id: { $in: [p1.userId, p2.userId] } },
@@ -112,7 +114,7 @@ io.on('connection', async (socket) => {
           opponent: { username: p2.username, elo: p2.elo }
         });
 
-        // Notification Joueur 2 (propre, via l'ID)
+        // Notification Joueur 2
         io.to(`user:${p2.userId}`).emit('match:found', {
           ...matchData,
           opponent: { username: p1.username, elo: p1.elo }
@@ -121,10 +123,7 @@ io.on('connection', async (socket) => {
         console.log(`[MATCH 1v1 CRÉÉ] ID: ${match._id}`);
       } catch (err) {
         console.error('[MATCH ERROR 1v1]', err);
-      }
-    }
-  });
-
+   });
   // ── LEAVE QUEUE ────────────────────────────────────────────────────────────
   socket.on('queue:leave', async () => {
     queue1v1.delete(user._id.toString());
