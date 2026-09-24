@@ -27,6 +27,7 @@ app.use(express.static(path.join(__dirname, '../frontend'), {
 app.use('/api/auth',        require('./routes/auth'));
 app.use('/api/match',       require('./routes/Match'));
 app.use('/api/leaderboard', require('./routes/leaderboard'));
+app.use('/api/admin',       require('./routes/admin')); // <-- Ajoute cette ligne !
 
 // ─── MATCHMAKING QUEUE ────────────────────────────────────────────────────────
 // Simple queue FIFO — on prend les deux premiers disponibles
