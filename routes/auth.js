@@ -27,11 +27,13 @@ router.post('/register', async (req, res) => {
     res.status(201).json({
       token,
       user: {
-        id:       user._id,
-        username: user.username,
-        elo:      user.elo,
-        rank:     user.getRank(),
-        role:     user.role // <-- Ajouté ici
+        id:        user._id,
+        username:  user.username,
+        role:      user.role,
+        elo:       user.elo,
+        rank:      user.getRank(),
+        elo2v2:    user.elo2v2,
+        rank2v2:   user.getRank2v2()
       }
     });
   } catch (err) {
@@ -57,13 +59,17 @@ router.post('/login', async (req, res) => {
     res.json({
       token,
       user: {
-        id:       user._id,
-        username: user.username,
-        elo:      user.elo,
-        rank:     user.getRank(),
-        stats:    user.stats,
-        winrate:  user.getWinrate(),
-        role:     user.role // <-- Ajouté ici
+        id:         user._id,
+        username:   user.username,
+        role:       user.role,
+        elo:        user.elo,
+        rank:       user.getRank(),
+        stats:      user.stats,
+        winrate:    user.getWinrate(),
+        elo2v2:     user.elo2v2,
+        rank2v2:    user.getRank2v2(),
+        stats2v2:   user.stats2v2,
+        winrate2v2: user.getWinrate2v2()
       }
     });
   } catch (err) {
@@ -77,13 +83,17 @@ router.get('/me', require('../middleware/auth'), async (req, res) => {
   res.json({
     id:          user._id,
     username:    user.username,
+    role:        user.role,
     elo:         user.elo,
     rank:        user.getRank(),
     stats:       user.stats,
     winrate:     user.getWinrate(),
+    elo2v2:      user.elo2v2,
+    rank2v2:     user.getRank2v2(),
+    stats2v2:    user.stats2v2,
+    winrate2v2:  user.getWinrate2v2(),
     inQueue:     user.inQueue,
-    inMatch:     user.inMatch,
-    role:        user.role // <-- Ajouté ici aussi
+    inMatch:     user.inMatch
   });
 });
 
