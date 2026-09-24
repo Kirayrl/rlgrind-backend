@@ -48,11 +48,14 @@ io.use(async (socket, next) => {
   }
 });
 
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
   const user = socket.user;
-  console.log(`[+] ${user.username} connecté (ELO 1v1: ${user.elo} | ELO 2v2: ${user.elo2v2})`);
 
-  // Rejoindre une room perso pour recevoir les events ciblés
+  // ── SÉCURITÉ : Remet les compteurs à plat à la connexion ──
+  await User.findByIdAndUpdate(user._id, { inQueue: false, inMatch: false });
+  // ---------------------------------------------------------
+
+  console.log(`[+] ${user.username} connecté (ELO 1v1: ${user.elo} | ELO 2v2: ${user.elo2v2})`);
   socket.join(`user:${user._id}`);
 
   // ── QUEUE 1v1 ──────────────────────────────────────────────────────────────
