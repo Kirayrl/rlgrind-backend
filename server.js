@@ -62,10 +62,8 @@ io.on('connection', async (socket) => {
     if (user.inMatch) {
       return socket.emit('queue:error', { message: 'Tu es déjà dans un match' });
     }
-    if (queue1v1.has(user._id.toString()) || queue2v2.has(user._id.toString())) {
-      return socket.emit('queue:error', { message: 'Déjà dans une queue' });
-    }
 
+    // On évite les doublons propres
     queue1v1.set(user._id.toString(), {
       socketId: socket.id,
       elo:      user.elo,
@@ -75,15 +73,19 @@ io.on('connection', async (socket) => {
 
     await User.findByIdAndUpdate(user._id, { inQueue: true });
     socket.emit('queue:joined', { mode: '1v1', position: queue1v1.size });
-    console.log(`[QUEUE 1v1] ${user.username} rejoint la queue (${queue1v1.size})`);
+    console.log(`[QUEUE 1v1] ${user.username} a rejoint. Total dans la file : ${queue1v1.size}`);
 
+    // Si on a 2 joueurs ou plus dans la Map
     if (queue1v1.size >= 2) {
       const entries = [...queue1v1.entries()];
       const [id1, p1] = entries[0];
       const [id2, p2] = entries[1];
 
+      // On les retire immédiatement de la file
       queue1v1.delete(id1);
       queue1v1.delete(id2);
+
+      console.log(`[MATCHMAKING] Match trouvé entre ${p1.username} et ${p2.username} ! Création en cours...`);
 
       try {
         const match = await Match.create({
@@ -99,7 +101,7 @@ io.on('connection', async (socket) => {
 
         const matchData = {
           matchId: match._id,
-          player1Id: p1.userId, // Transmet l'ID du Joueur 1 (l'hôte)
+          player1Id: p1.userId,
           lobbyName: match.lobbyName,
           lobbyPassword: match.lobbyPassword,
         };
@@ -108,12 +110,18 @@ io.on('connection', async (socket) => {
           ...matchData,
           opponent: { username: p2.username, elo: p2.elo }
         });
+        io.to(`user:${p2.username}` /* Attention ici, utilise bien p2.userId */).emit('match:found', {
+          ...matchData,
+          opponent: { username: p1.username, elo: p1.elo }
+        });
+        
+        // Correction de la ligne d'émission pour p2 :
         io.to(`user:${p2.userId}`).emit('match:found', {
           ...matchData,
           opponent: { username: p1.username, elo: p1.elo }
         });
 
-        console.log(`[MATCH 1v1] ${p1.username} vs ${p2.username}`);
+        console.log(`[MATCH 1v1 CRÉÉ] ID: ${match._id}`);
       } catch (err) {
         console.error('[MATCH ERROR 1v1]', err);
       }
